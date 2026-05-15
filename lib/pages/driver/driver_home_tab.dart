@@ -139,6 +139,10 @@ class _DriverHomeTabState extends State<DriverHomeTab> {
         children: [
           Row(
             children: [
+              IconButton(
+                icon: const Icon(Icons.menu, color: Colors.white),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(

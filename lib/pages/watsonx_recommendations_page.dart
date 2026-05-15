@@ -17,6 +17,8 @@ class _WatsonxRecommendationsPageState
   bool _loading = false;
   Map<String, dynamic>? _result;
   List<Map<String, dynamic>> _recommendations = [];
+  String _assistantText = '';
+  String _lastQuery = '';
 
   @override
   void dispose() {
@@ -32,19 +34,32 @@ class _WatsonxRecommendationsPageState
       return;
     }
 
+    final query = _queryController.text.trim();
     setState(() {
       _loading = true;
       _result = null;
       _recommendations = [];
+      _assistantText = '';
+      _lastQuery = query;
     });
 
-    final result =
-        await WatsonxService.fetchRecommendations(_queryController.text.trim());
+    final result = await WatsonxService.fetchRecommendations(
+      query,
+      onChunk: (chunk) {
+        if (!mounted) return;
+        setState(() {
+          _assistantText += chunk;
+        });
+      },
+    );
 
     setState(() {
       _loading = false;
       _result = result;
       _recommendations = result['recommendations'] ?? [];
+      if (_assistantText.isEmpty && result['body'] != null) {
+        _assistantText = result['body'].toString();
+      }
     });
 
     if (result['error'] != null) {
@@ -124,6 +139,8 @@ class _WatsonxRecommendationsPageState
               ),
             ),
             const SizedBox(height: 32),
+            if (_lastQuery.isNotEmpty)
+              _buildChatBlock(),
             if (_recommendations.isEmpty && !_loading && _result != null)
               Container(
                 padding: const EdgeInsets.all(16),
@@ -216,6 +233,69 @@ class _WatsonxRecommendationsPageState
               ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildChatBlock() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Conversation',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Constants.primaryColor,
+          ),
+        ),
+        const SizedBox(height: 14),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey[200]!),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildMessageBubble('Vous', _lastQuery, false),
+              const SizedBox(height: 12),
+              _buildMessageBubble('Watsonx', _assistantText.isNotEmpty ? _assistantText : 'En attente de la réponse...', true),
+            ],
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _buildMessageBubble(String sender, String text, bool isAssistant) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isAssistant ? Constants.accentLagoon.withOpacity(0.08) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            sender,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Constants.primaryColor,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            text,
+            style: TextStyle(fontSize: 14, color: Colors.grey[800], height: 1.5),
+          ),
+        ],
       ),
     );
   }

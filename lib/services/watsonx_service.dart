@@ -5,15 +5,24 @@ import 'package:repair_service_ui/config/maps_config.dart';
 /// Watsonx (IBM Watson Orchestrate) client for route recommendations.
 class WatsonxService {
   /// Fetch route recommendations from Watsonx based on a travel query.
-  static Future<Map<String, dynamic>> fetchRecommendations(String message) async {
+  static Future<Map<String, dynamic>> fetchRecommendations(
+    String message, {
+    void Function(String chunk)? onChunk,
+  }) async {
     if (kWatsonxEndpoint.isEmpty || kWatsonxApiKey.isEmpty) {
       return {'error': 'Watsonx not configured', 'recommendations': []};
     }
 
+    final client = http.Client();
     try {
       final uri = Uri.parse('${kWatsonxEndpoint}/api/v1/orchestrate/runs/stream');
-      
-      final body = jsonEncode({
+      final request = http.Request('POST', uri);
+      request.headers.addAll({
+        'Content-Type': 'application/json',
+        'Accept': 'application/json, text/event-stream',
+        'Authorization': 'Bearer ${kWatsonxApiKey}',
+      });
+      request.body = jsonEncode({
         'message': {
           'role': 'user',
           'content': [
@@ -29,38 +38,65 @@ class WatsonxService {
         },
       });
 
-      final resp = await http.post(
-        uri,
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer ${kWatsonxApiKey}',
-        },
-        body: body,
-      ).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () => http.Response('Timeout', 408),
+      final streamedResp = await client.send(request).timeout(
+        const Duration(seconds: 40),
+        onTimeout: () => throw Exception('Watsonx request timeout'),
       );
 
-      if (resp.statusCode == 200 || resp.statusCode == 201) {
-        final data = jsonDecode(resp.body);
+      final buffer = StringBuffer();
+      await for (final chunk in streamedResp.stream.transform(utf8.decoder)) {
+        final normalized = _normalizeChunk(chunk);
+        buffer.write(normalized);
+        if (onChunk != null && normalized.isNotEmpty) {
+          onChunk(normalized);
+        }
+      }
+
+      final body = buffer.toString();
+      if (streamedResp.statusCode == 200 || streamedResp.statusCode == 201) {
+        Map<String, dynamic>? data;
+        try {
+          data = jsonDecode(body) as Map<String, dynamic>;
+        } catch (_) {
+          final matches = RegExp(r'data:\s*(\{.*\})', dotAll: true).allMatches(body);
+          if (matches.isNotEmpty) {
+            try {
+              data = jsonDecode(matches.last.group(1)!) as Map<String, dynamic>;
+            } catch (_) {
+              data = null;
+            }
+          }
+        }
+
+        if (data != null) {
+          return {
+            'success': true,
+            'data': data,
+            'recommendations': _parseRecommendations(data),
+            'body': body,
+          };
+        }
+
         return {
-          'success': true,
-          'data': data,
-          'recommendations': _parseRecommendations(data),
-        };
-      } else {
-        return {
-          'error': 'API Error: ${resp.statusCode}',
-          'body': resp.body,
+          'success': false,
+          'error': 'Unable to parse Watsonx response',
+          'body': body,
           'recommendations': [],
         };
       }
+
+      return {
+        'error': 'API Error: ${streamedResp.statusCode}',
+        'body': body,
+        'recommendations': [],
+      };
     } catch (e) {
       return {
         'error': 'Exception: $e',
         'recommendations': [],
       };
+    } finally {
+      client.close();
     }
   }
 
@@ -99,6 +135,21 @@ class WatsonxService {
     }
 
     return recommendations;
+  }
+
+  static String _normalizeChunk(String chunk) {
+    final lines = chunk.split(RegExp(r'\r?\n'));
+    final buffer = StringBuffer();
+    for (final line in lines) {
+      if (line.startsWith('data: ')) {
+        buffer.write(line.substring(6));
+      } else if (line.startsWith('data:')) {
+        buffer.write(line.substring(5));
+      } else {
+        buffer.write(line);
+      }
+    }
+    return buffer.toString();
   }
 
   /// Fetch simple route suggestions (legacy)
