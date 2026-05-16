@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:repair_service_ui/pages/main_shell.dart';
+import 'package:repair_service_ui/pages/request_service_flow.dart';
 import 'package:repair_service_ui/services/app_session.dart';
 import 'package:repair_service_ui/utils/constants.dart';
 import 'package:repair_service_ui/widgets/input_widget.dart';
@@ -108,7 +108,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     onPressed: () {
                       AppSession.setFromRegistration(_userType);
                       Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(builder: (_) => const MainShell()),
+                        MaterialPageRoute(builder: (_) => const RequestServiceFlow()),
                       );
                     },
                   ),

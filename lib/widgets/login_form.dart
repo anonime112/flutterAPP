@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:repair_service_ui/pages/main_shell.dart';
 import 'package:repair_service_ui/pages/register_page.dart';
+import 'package:repair_service_ui/pages/request_service_flow.dart';
 import 'package:repair_service_ui/services/app_session.dart';
 import 'package:repair_service_ui/utils/helper.dart';
 import 'package:repair_service_ui/widgets/input_widget.dart';
@@ -30,7 +30,9 @@ class LoginForm extends StatelessWidget {
             text: "Entrer",
             onPressed: () {
               AppSession.setFromRegistration(UserType.client);
-              Helper.nextPage(context, const MainShell());
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (_) => const RequestServiceFlow()),
+              );
             },
           ),
           SizedBox(height: 16.0),
