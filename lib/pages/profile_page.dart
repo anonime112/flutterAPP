@@ -4,6 +4,7 @@ import 'package:repair_service_ui/pages/register_page.dart';
 import 'package:repair_service_ui/services/app_session.dart';
 import 'package:repair_service_ui/utils/constants.dart';
 import 'package:repair_service_ui/utils/helper.dart';
+import 'package:repair_service_ui/widgets/app_drawer.dart';
 
 /// Onglet profil utilisateur.
 class ProfilePage extends StatelessWidget {
@@ -12,6 +13,7 @@ class ProfilePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: const AppDrawer(),
       backgroundColor: Constants.greyColor,
       body: Column(
         children: [

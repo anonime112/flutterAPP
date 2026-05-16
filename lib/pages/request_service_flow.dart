@@ -5,6 +5,7 @@ import 'package:repair_service_ui/utils/constants.dart';
 import 'package:repair_service_ui/widgets/home_page_one.dart';
 import 'package:repair_service_ui/widgets/home_page_three.dart';
 import 'package:repair_service_ui/widgets/home_page_two.dart';
+import 'package:repair_service_ui/widgets/app_drawer.dart';
 
 class RequestServiceFlow extends StatefulWidget {
   final int initialPage;
@@ -52,6 +53,7 @@ class _RequestServiceFlowState extends State<RequestServiceFlow> {
     ];
 
     return Scaffold(
+      drawer: const AppDrawer(),
       appBar: AppBar(
         systemOverlayStyle: SystemUiOverlayStyle.light,
         elevation: 0.0,
