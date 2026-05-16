@@ -3,7 +3,6 @@ import 'package:repair_service_ui/models/carpool_models.dart';
 import 'package:repair_service_ui/services/app_session.dart';
 import 'package:repair_service_ui/services/carpool_service.dart';
 import 'package:repair_service_ui/utils/constants.dart';
-import 'package:repair_service_ui/widgets/app_drawer.dart';
 
 /// Accueil conducteur : publier un trajet A→B et gérer les demandes de covoiturage.
 class DriverHomeTab extends StatefulWidget {
@@ -60,7 +59,6 @@ class _DriverHomeTabState extends State<DriverHomeTab> {
     final pending = CarpoolService.pendingRequestCount;
 
     return Scaffold(
-      drawer: const AppDrawer(),
       backgroundColor: Colors.white,
       body: RefreshIndicator(
         onRefresh: () async {
@@ -139,10 +137,6 @@ class _DriverHomeTabState extends State<DriverHomeTab> {
         children: [
           Row(
             children: [
-              IconButton(
-                icon: const Icon(Icons.menu, color: Colors.white),
-                onPressed: () => Scaffold.of(context).openDrawer(),
-              ),
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(

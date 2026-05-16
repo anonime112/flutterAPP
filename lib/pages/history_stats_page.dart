@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:repair_service_ui/utils/constants.dart';
-import 'package:repair_service_ui/widgets/app_drawer.dart';
 
 /// Historique des trajets + statistiques de performance de l’IA.
 class HistoryStatsPage extends StatelessWidget {
@@ -11,7 +10,6 @@ class HistoryStatsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      drawer: const AppDrawer(),
       backgroundColor: Colors.white,
       body: Column(
         children: [

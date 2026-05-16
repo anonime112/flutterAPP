@@ -3,9 +3,7 @@ import 'package:repair_service_ui/pages/main_shell.dart';
 import 'package:repair_service_ui/pages/order_vtc.dart';
 import 'package:repair_service_ui/pages/plan_trip.dart';
 import 'package:repair_service_ui/pages/request_service_flow.dart';
-import 'package:repair_service_ui/pages/carpool_request_page.dart';
 import 'package:repair_service_ui/utils/constants.dart';
-import 'package:repair_service_ui/widgets/app_drawer.dart';
 import 'package:repair_service_ui/widgets/input_widget.dart';
 
 /// Contenu onglet Accueil (ex-app_home).
@@ -55,7 +53,7 @@ class _HomeTabState extends State<HomeTab> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
-      drawer: const AppDrawer(),
+      drawer: _buildDrawer(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -229,7 +227,6 @@ class _HomeTabState extends State<HomeTab> {
                           'Covoiturage',
                           Icons.people,
                           Constants.accentGreen,
-                          onTap: () => _openOverlay(const CarpoolRequestPage()),
                         ),
                       ),
                     ],
@@ -251,6 +248,74 @@ class _HomeTabState extends State<HomeTab> {
     );
   }
 
+  Widget _buildDrawer(BuildContext context) {
+    return Drawer(
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+              color: Constants.primaryColor,
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 28,
+                    backgroundColor: Colors.white,
+                    child: Icon(Icons.route_rounded, size: 28, color: Constants.primaryColor),
+                  ),
+                  const SizedBox(width: 16),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Abidjan Trajet',
+                          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        SizedBox(height: 6),
+                        Text('Mobilité & IA', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            _drawerItem(Icons.home_outlined, 'Accueil', () {
+              Navigator.pop(context);
+              MainShell.of(context)?.switchTab(0);
+            }),
+            _drawerItem(Icons.map, 'Planifier', () {
+              Navigator.pop(context);
+              _openOverlay(PlanTripPage());
+            }),
+            _drawerItem(Icons.insights, 'Historique & stats', () {
+              Navigator.pop(context);
+              MainShell.of(context)?.switchTab(1);
+            }),
+            _drawerItem(Icons.local_taxi, 'Commander', () {
+              Navigator.pop(context);
+              _openOverlay(OrderVtcPage());
+            }),
+            _drawerItem(Icons.pages, 'Introduction', () {
+              Navigator.pop(context);
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => RequestServiceFlow(initialPage: 1)),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _drawerItem(IconData icon, String title, VoidCallback onTap) {
+    return ListTile(
+      leading: Icon(icon, color: Constants.primaryColor),
+      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+      onTap: onTap,
+    );
+  }
 
   Widget _carouselCard(Map<String, String> item, bool isActive) {
     return AnimatedContainer(

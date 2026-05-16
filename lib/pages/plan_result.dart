@@ -1,16 +1,56 @@
 import 'package:flutter/material.dart';
+import 'package:repair_service_ui/services/watsonx_service.dart';
 import 'package:repair_service_ui/utils/constants.dart';
+import 'package:repair_service_ui/utils/nav_helper.dart';
 import 'package:repair_service_ui/widgets/abidjan_map_view.dart';
 import 'package:repair_service_ui/widgets/carpool_match_section.dart';
 import 'package:repair_service_ui/widgets/app_drawer.dart';
 
 class PlanResultPage extends StatefulWidget {
+  final String from;
+  final String to;
+  final DateTime? dateTime;
+
+  const PlanResultPage({
+    super.key,
+    this.from = 'Marcory — Zone 4',
+    this.to = 'Plateau — Centre',
+    this.dateTime,
+  });
+
   @override
   _PlanResultPageState createState() => _PlanResultPageState();
 }
 
 class _PlanResultPageState extends State<PlanResultPage> {
   int selectedOption = 0;
+  bool _watsonLoading = false;
+  String _watsonText = '';
+  String? _watsonError;
+  bool _watsonRequested = false;
+  int selectedCarouselIndex = 0;
+  late PageController _pageController;
+
+  final List<Map<String, String>> carouselItems = [
+    {
+      'image': 'assets/images/Pont-bouygues.jpg',
+      'title': 'Trajet analysé',
+      'subtitle': 'Réservez votre solution immédiatement.',
+      'tag': 'RAPIDE',
+    },
+    {
+      'image': 'assets/images/gettyimages-1321204684-2048x2048.jpg',
+      'title': 'Options variées',
+      'subtitle': 'VTC, bus, covoiturage selon vos préférences.',
+      'tag': 'CHOIX',
+    },
+    {
+      'image': 'assets/images/0_250303064111.jpg',
+      'title': 'Tarifs clairs',
+      'subtitle': 'Pas de surprise, prix affichés davance.',
+      'tag': 'TRANSPARENT',
+    },
+  ];
 
   final List<Map<String, dynamic>> solutions = [
     {
@@ -64,72 +104,183 @@ class _PlanResultPageState extends State<PlanResultPage> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(viewportFraction: 0.86);
+    _fetchWatsonRoute();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _fetchWatsonRoute() async {
+    setState(() {
+      _watsonLoading = true;
+      _watsonError = null;
+      _watsonText = '';
+    });
+
+    final message = 'Propose un itinéraire optimal de ${widget.from} à ${widget.to}. '
+        'Considère les options VTC, transports en commun et covoiturage. '
+        'Indique les durées estimées, distances et tarifs approximatifs.';
+
+    final result = await WatsonxService.fetchRecommendations(
+      message,
+      onChunk: (chunk) {
+        if (!mounted) return;
+        setState(() {
+          _watsonText += chunk;
+        });
+      },
+    );
+
+    setState(() {
+      _watsonLoading = false;
+      _watsonRequested = true;
+      if (result['error'] != null) {
+        _watsonError = result['error'];
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       drawer: const AppDrawer(),
       extendBodyBehindAppBar: true,
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: IconThemeData(color: Constants.primaryColor),
-        title: Text(
-          'Meilleures solutions',
-          style: TextStyle(
-            color: Constants.primaryColor,
-            fontWeight: FontWeight.bold,
-            fontSize: 18.0,
-          ),
+        iconTheme: const IconThemeData(color: Colors.white),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+          onPressed: () => popPage(context),
         ),
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.only(
-          left: 24.0,
-          right: 24.0,
-          top: MediaQuery.of(context).padding.top + 80.0,
-          bottom: 20.0,
-        ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'Résultats optimisés par IA',
-              style: TextStyle(
-                fontSize: 26.0,
-                fontWeight: FontWeight.bold,
-                color: Constants.primaryColor,
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Constants.backgroundDark, Constants.primaryColor],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
+              ),
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(24, MediaQuery.paddingOf(context).top + kToolbarHeight + 8, 24, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Meilleures solutions',
+                      style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 16),
+                    Material(
+                      elevation: 8,
+                      borderRadius: BorderRadius.circular(20),
+                      color: Colors.white,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text('Votre trajet', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey[600], letterSpacing: 0.3)),
+                            const SizedBox(height: 12),
+                            _trajRow('Départ', widget.from, Icons.trip_origin, Constants.accentGreen),
+                            Padding(padding: const EdgeInsets.only(left: 19, top: 6, bottom: 6), child: Container(width: 2, height: 16, color: Colors.grey[300])),
+                            _trajRow('Arrivée', widget.to, Icons.location_on_rounded, Constants.accentOrange),
+                            const SizedBox(height: 12),
+                            if (widget.dateTime != null)
+                              Text(
+                                'Le ${widget.dateTime!.day}/${widget.dateTime!.month}/${widget.dateTime!.year} à ${widget.dateTime!.hour.toString().padLeft(2, '0')}:${widget.dateTime!.minute.toString().padLeft(2, '0')}',
+                                style: TextStyle(color: Colors.grey[700], fontSize: 12),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            SizedBox(height: 8.0),
-            Text(
-              'Voici les meilleures options pour votre trajet à Abidjan.',
-              style: TextStyle(
-                color: Colors.grey[700],
-                fontSize: 14.0,
-                height: 1.5,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Map preview replaces the carousel here
+                  mapPreviewCard(),
+                  const SizedBox(height: 12),
+                  Text('Options de transport', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Constants.primaryColor)),
+                  const SizedBox(height: 16),
+                  ...List.generate(solutions.length, (index) => _buildSolutionCard(solutions[index], index)),
+                  const SizedBox(height: 28),
+                  CarpoolMatchSection(from: widget.from, to: widget.to),
+                  const SizedBox(height: 28),
+                  _buildWatsonResponseSection(),
+                  const SizedBox(height: 20),
+                ],
               ),
             ),
-            SizedBox(height: 24.0),
-            mapPreviewCard(),
-            SizedBox(height: 28.0),
-            CarpoolMatchSection(
-              from: 'Marcory — Zone 4',
-              to: 'Plateau — Centre',
-            ),
-            SizedBox(height: 28.0),
-            Text(
-              'Options de transport',
-              style: TextStyle(
-                fontSize: 18.0,
-                fontWeight: FontWeight.bold,
-                color: Constants.primaryColor,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _trajRow(String label, String value, IconData icon, Color color) {
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 20),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+              Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _carouselCard(Map<String, String> item, bool isActive) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      margin: EdgeInsets.only(right: 16, top: isActive ? 0 : 12, bottom: isActive ? 0 : 12),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(24), boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 12, offset: const Offset(0, 6))]),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(item['image']!, fit: BoxFit.cover),
+            Container(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.black.withValues(alpha: 0.4), Colors.black.withValues(alpha: 0.15)]))),
+            Positioned(
+              left: 16,
+              bottom: 16,
+              right: 16,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: Constants.accentOrange.withValues(alpha: 0.95), borderRadius: BorderRadius.circular(16)), child: Text(item['tag']!, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 11))),
+                  const SizedBox(height: 10),
+                  Text(item['title']!, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text(item['subtitle']!, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                ],
               ),
             ),
-            SizedBox(height: 16.0),
-            ...List.generate(
-              solutions.length,
-              (index) => _buildSolutionCard(solutions[index], index),
-            ),
-            SizedBox(height: 20.0),
           ],
         ),
       ),
@@ -138,15 +289,15 @@ class _PlanResultPageState extends State<PlanResultPage> {
 
   Widget mapPreviewCard() {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(24.0),
+      borderRadius: BorderRadius.circular(20),
       child: SizedBox(
-        height: 200.0,
+        height: 200,
         child: AbidjanMapView(
           pickupLabel: 'Départ',
-          pickupSnippet: 'Abidjan Centre',
+          pickupSnippet: widget.from,
           dropoffLabel: 'Arrivée',
-          dropoffSnippet: 'Yopougon',
-          mapPadding: const EdgeInsets.only(bottom: 40.0),
+          dropoffSnippet: widget.to,
+          mapPadding: const EdgeInsets.only(bottom: 40),
         ),
       ),
     );
@@ -155,191 +306,81 @@ class _PlanResultPageState extends State<PlanResultPage> {
   Widget _buildSolutionCard(Map<String, dynamic> solution, int index) {
     bool isSelected = selectedOption == index;
     return Container(
-      margin: EdgeInsets.only(bottom: 14.0),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: isSelected
-            ? solution['color'].withOpacity(0.08)
-            : Colors.white,
-        borderRadius: BorderRadius.circular(20.0),
-        border: Border.all(
-          color: isSelected
-              ? solution['color']
-              : Colors.grey[200]!,
-          width: isSelected ? 2.0 : 1.0,
-        ),
-        boxShadow: isSelected
-            ? [
-                BoxShadow(
-                  color: solution['color'].withOpacity(0.15),
-                  blurRadius: 12.0,
-                  offset: Offset(0, 4),
-                ),
-              ]
-            : [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
-                  blurRadius: 8.0,
-                  offset: Offset(0, 2),
-                ),
-              ],
+        color: isSelected ? solution['color'].withOpacity(0.08) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isSelected ? solution['color'] : Colors.grey[200]!, width: isSelected ? 2 : 1),
+        boxShadow: isSelected ? [BoxShadow(color: solution['color'].withOpacity(0.15), blurRadius: 12, offset: const Offset(0, 4))] : [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(20.0),
-          onTap: () {
-            setState(() {
-              selectedOption = index;
-            });
-          },
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => setState(() => selectedOption = index),
           child: Padding(
-            padding: EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      width: 50.0,
-                      height: 50.0,
-                      decoration: BoxDecoration(
-                        color: solution['color'].withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(14.0),
-                      ),
-                      child: Icon(
-                        solution['icon'],
-                        color: solution['color'],
-                        size: 26.0,
-                      ),
+                      width: 45,
+                      height: 45,
+                      decoration: BoxDecoration(color: solution['color'].withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
+                      child: Icon(solution['icon'], color: solution['color'], size: 24),
                     ),
-                    SizedBox(width: 14.0),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
-                              Text(
-                                solution['title'],
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16.0,
-                                  color: Constants.primaryColor,
-                                ),
+                              Expanded(
+                                child: Text(solution['title'], style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Constants.primaryColor)),
                               ),
-                              if (solution['isRecommended']) ...[
-                                SizedBox(width: 8.0),
+                              if (solution['isRecommended'])
                                 Container(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 8.0,
-                                    vertical: 3.0,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Constants.accentGreen.withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(6.0),
-                                  ),
-                                  child: Text(
-                                    'Recommandé',
-                                    style: TextStyle(
-                                      fontSize: 10.0,
-                                      fontWeight: FontWeight.bold,
-                                      color: Constants.accentGreen,
-                                    ),
-                                  ),
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(color: Constants.accentGreen.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+                                  child: Text('Top', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Constants.accentGreen)),
                                 ),
-                              ],
                             ],
                           ),
-                          SizedBox(height: 6.0),
-                          Text(
-                            solution['info'],
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 12.0,
-                            ),
-                          ),
+                          const SizedBox(height: 4),
+                          Text(solution['info'], style: TextStyle(color: Colors.grey[600], fontSize: 12)),
                         ],
                       ),
                     ),
+                    const SizedBox(width: 8),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(
-                          solution['price'],
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16.0,
-                            color: solution['color'],
-                          ),
-                        ),
-                        SizedBox(height: 4.0),
-                        Text(
-                          '${solution['duration']} • ${solution['distance']}',
-                          style: TextStyle(
-                            fontSize: 11.0,
-                            color: Colors.grey[600],
-                          ),
-                        ),
+                        Text(solution['price'], style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: solution['color'])),
+                        Text('${solution['duration']}', style: TextStyle(fontSize: 11, color: Colors.grey[600])),
                       ],
                     ),
                   ],
                 ),
                 if (isSelected) ...[
-                  SizedBox(height: 14.0),
-                  Divider(height: 1.0, color: Colors.grey[200]),
-                  SizedBox(height: 12.0),
-                  Text(
-                    solution['details'],
-                    style: TextStyle(
-                      color: Colors.grey[700],
-                      fontSize: 13.0,
-                      height: 1.4,
-                    ),
-                  ),
-                  SizedBox(height: 14.0),
+                  const SizedBox(height: 12),
+                  Divider(height: 1, color: Colors.grey[200]),
+                  const SizedBox(height: 10),
+                  Text(solution['details'], style: TextStyle(color: Colors.grey[700], fontSize: 12, height: 1.4)),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('${solution['title']} réservé!'),
-                                backgroundColor: solution['color'],
-                              ),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: solution['color'],
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12.0),
-                            ),
-                            padding: EdgeInsets.symmetric(vertical: 12.0),
-                          ),
-                          child: Text(
-                            'Réserver',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14.0,
-                            ),
-                          ),
+                          onPressed: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${solution['title']} réservé!'), backgroundColor: solution['color'])),
+                          style: ElevatedButton.styleFrom(backgroundColor: solution['color'], shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), padding: const EdgeInsets.symmetric(vertical: 11)),
+                          child: const Text('Réserver', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                         ),
                       ),
-                      SizedBox(width: 10.0),
-                      Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: Colors.grey[300]!,
-                          ),
-                          borderRadius: BorderRadius.circular(12.0),
-                        ),
-                        child: IconButton(
-                          icon: Icon(Icons.share, size: 18.0),
-                          onPressed: () {},
-                          splashRadius: 20.0,
-                        ),
-                      ),
+                      const SizedBox(width: 10),
+                      Container(decoration: BoxDecoration(border: Border.all(color: Colors.grey[300]!), borderRadius: BorderRadius.circular(12)), child: IconButton(icon: const Icon(Icons.share, size: 18), onPressed: () {}, splashRadius: 20)),
                     ],
                   ),
                 ],
@@ -350,4 +391,44 @@ class _PlanResultPageState extends State<PlanResultPage> {
       ),
     );
   }
+
+  Widget _buildWatsonResponseSection() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Constants.accentLagoon.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Constants.accentLagoon.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.auto_awesome, color: Constants.accentLagoon, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Recommandations Watsonx',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Constants.primaryColor),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_watsonLoading)
+            Column(
+              children: [
+                LinearProgressIndicator(color: Constants.accentOrange),
+                const SizedBox(height: 10),
+                Text('Watsonx analyse votre trajet...', style: TextStyle(color: Colors.grey[700], fontSize: 13)),
+              ],
+            ),
+          if (_watsonError != null) Text(_watsonError!, style: TextStyle(color: Colors.red[700], fontSize: 12)),
+          if (_watsonText.isNotEmpty) Text(_watsonText, style: TextStyle(color: Colors.grey[800], height: 1.5, fontSize: 13)),
+        ],
+      ),
+    );
+  }
 }
+

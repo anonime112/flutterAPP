@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:repair_service_ui/pages/plan_result.dart';
 import 'package:repair_service_ui/services/plan_service.dart';
 import 'package:repair_service_ui/utils/constants.dart';
 import 'package:repair_service_ui/widgets/app_drawer.dart';
@@ -39,50 +40,63 @@ class _PlanTripListPageState extends State<PlanTripListPage> {
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
               itemBuilder: (context, index) {
                 final trip = trips[index];
-                return Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: Colors.grey[200]!),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.03),
-                        blurRadius: 12,
-                        offset: const Offset(0, 3),
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => PlanResultPage(
+                          from: trip.from,
+                          to: trip.to,
+                          dateTime: trip.dateTime,
+                        ),
                       ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              '${trip.from} → ${trip.to}',
-                              style: TextStyle(
-                                color: Constants.primaryColor,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: Colors.grey[200]!),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.03),
+                          blurRadius: 12,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '${trip.from} → ${trip.to}',
+                                style: TextStyle(
+                                  color: Constants.primaryColor,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                               ),
                             ),
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.delete_outline, color: Constants.accentOrange),
-                            onPressed: () {
-                              setState(() {
-                                PlanService.removeTrip(trip.id);
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Text('Date : ${trip.formattedDate}', style: TextStyle(color: Colors.grey[700], fontSize: 13)),
-                      const SizedBox(height: 4),
-                      Text('Heure : ${trip.formattedTime}', style: TextStyle(color: Colors.grey[700], fontSize: 13)),
-                    ],
+                            IconButton(
+                              icon: Icon(Icons.delete_outline, color: Constants.accentOrange),
+                              onPressed: () {
+                                setState(() {
+                                  PlanService.removeTrip(trip.id);
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Text('Date : ${trip.formattedDate}', style: TextStyle(color: Colors.grey[700], fontSize: 13)),
+                        const SizedBox(height: 4),
+                        Text('Heure : ${trip.formattedTime}', style: TextStyle(color: Colors.grey[700], fontSize: 13)),
+                      ],
+                    ),
                   ),
                 );
               },

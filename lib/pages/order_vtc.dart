@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:repair_service_ui/services/watsonx_service.dart';
 import 'package:repair_service_ui/utils/constants.dart';
 import 'package:repair_service_ui/utils/nav_helper.dart';
 import 'package:repair_service_ui/widgets/abidjan_map_view.dart';
 import 'package:repair_service_ui/widgets/carpool_match_section.dart';
-import 'package:repair_service_ui/widgets/app_drawer.dart';
 
 /// Page commande : carte plein écran puis écran « options » style dashboard teal.
 class OrderVtcPage extends StatefulWidget {
@@ -17,10 +15,6 @@ class _OrderVtcPageState extends State<OrderVtcPage> {
   String startLocation = 'Zone 4, Abidjan';
   String endLocation = 'Plateau, Abidjan';
   String selectedRideId = 'yango';
-  bool _watsonLoading = false;
-  String _watsonText = '';
-  String? _watsonError;
-  bool _watsonRequested = false;
 
   /// Points de prise proches (Gbaka, taxi communal…).
   final List<Map<String, Object>> _pickupSpots = [
@@ -106,7 +100,6 @@ class _OrderVtcPageState extends State<OrderVtcPage> {
   Widget build(BuildContext context) {
     final onMap = currentStep == 0;
     return Scaffold(
-      drawer: const AppDrawer(),
       extendBodyBehindAppBar: onMap,
       backgroundColor: onMap ? const Color(0xFF0A1620) : _headerDark,
       appBar: onMap
@@ -221,7 +214,7 @@ class _OrderVtcPageState extends State<OrderVtcPage> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: _prepareWatsonRoute,
+                        onPressed: () => setState(() => currentStep = 1),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Constants.accentOrange,
                           foregroundColor: Colors.white,
@@ -354,8 +347,6 @@ class _OrderVtcPageState extends State<OrderVtcPage> {
                   _sectionRow('Collectif & Gbaka', null),
                   const SizedBox(height: 12),
                   ..._collectifOptions.map((c) => _collectifTile(c)),
-                  const SizedBox(height: 22),
-                  _buildWatsonResponseSection(),
                 ],
               ),
             ),
@@ -895,115 +886,6 @@ class _OrderVtcPageState extends State<OrderVtcPage> {
           ],
         ),
       ),
-    );
-  }
-
-  void _prepareWatsonRoute() {
-    setState(() {
-      currentStep = 1;
-      _watsonRequested = true;
-      _watsonLoading = true;
-      _watsonText = '';
-      _watsonError = null;
-    });
-    _fetchWatsonRoute();
-  }
-
-  Future<void> _fetchWatsonRoute() async {
-    final prompt =
-        'Je cherche le meilleur trajet d\'un passager à Abidjan de $startLocation à $endLocation. '
-        'Propose un itinéraire VTC optimal et indique une alternative covoiturage ou transport collectif si cela est plus rapide ou moins cher. '
-        'Donne une réponse claire et concise pour l\'utilisateur.';
-
-    final result = await WatsonxService.fetchRecommendations(
-      prompt,
-      onChunk: (chunk) {
-        if (!mounted) return;
-        setState(() {
-          _watsonText += chunk;
-        });
-      },
-    );
-
-    if (!mounted) return;
-    if (result['success'] == true) {
-      setState(() {
-        _watsonLoading = false;
-        if (_watsonText.isEmpty) {
-          _watsonText = result['body']?.toString() ?? 'Watsonx a renvoyé une réponse vide.';
-        }
-      });
-    } else {
-      setState(() {
-        _watsonLoading = false;
-        _watsonError = result['error']?.toString() ?? 'Erreur Watsonx inconnue.';
-        if (_watsonText.isEmpty) {
-          _watsonText = result['body']?.toString() ?? '';
-        }
-      });
-    }
-  }
-
-  Widget _buildWatsonResponseSection() {
-    if (!_watsonRequested) {
-      return const SizedBox.shrink();
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: Constants.accentLagoon.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Constants.accentLagoon.withOpacity(0.25)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.auto_awesome, color: Constants.accentLagoon),
-                  const SizedBox(width: 10),
-                  Text(
-                    'Réponse Watsonx',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Constants.primaryColor,
-                      fontSize: 16,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              if (_watsonLoading)
-                Column(
-                  children: [
-                    LinearProgressIndicator(color: Constants.accentOrange),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Watsonx recherche le meilleur trajet...',
-                      style: TextStyle(color: Colors.grey[700]),
-                    ),
-                  ],
-                ),
-              if (_watsonError != null)
-                Text(
-                  _watsonError!,
-                  style: TextStyle(color: Colors.red[700], fontSize: 13),
-                ),
-              if (_watsonText.isNotEmpty) ...[
-                Text(
-                  _watsonText,
-                  style: TextStyle(color: Colors.grey[800], height: 1.5),
-                ),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 22),
-      ],
     );
   }
 }

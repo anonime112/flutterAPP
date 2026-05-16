@@ -6,7 +6,6 @@ import 'package:repair_service_ui/pages/profile_page.dart';
 import 'package:repair_service_ui/pages/tabs/home_tab.dart';
 import 'package:repair_service_ui/services/app_session.dart';
 import 'package:repair_service_ui/widgets/app_bottom_nav.dart';
-import 'package:repair_service_ui/widgets/app_drawer.dart';
 
 /// Conteneur principal : onglets + barre de navigation sur toutes les vues.
 class MainShell extends StatefulWidget {
@@ -59,7 +58,6 @@ class MainShellState extends State<MainShell> {
         }
       },
       child: Scaffold(
-        drawer: const AppDrawer(),
         body: _overlay ?? IndexedStack(
           index: _currentIndex,
           children: AppSession.isConducteur

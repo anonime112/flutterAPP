@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:repair_service_ui/pages/main_shell.dart';
 import 'package:repair_service_ui/pages/order_vtc.dart';
 import 'package:repair_service_ui/utils/constants.dart';
-import 'package:repair_service_ui/widgets/app_drawer.dart';
 
 /// Onglet commandes / courses en cours.
 class OrdersTabPage extends StatelessWidget {
@@ -11,7 +10,6 @@ class OrdersTabPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      drawer: const AppDrawer(),
       backgroundColor: Colors.white,
       body: Column(
         children: [
