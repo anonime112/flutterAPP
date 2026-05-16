@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:repair_service_ui/models/carpool_models.dart';
+import 'package:repair_service_ui/pages/driver/driver_active_course_page.dart';
+import 'package:repair_service_ui/pages/main_shell.dart';
 import 'package:repair_service_ui/services/app_session.dart';
 import 'package:repair_service_ui/services/carpool_service.dart';
 import 'package:repair_service_ui/utils/constants.dart';
+import 'package:repair_service_ui/widgets/app_drawer.dart';
+import 'package:repair_service_ui/widgets/input_widget.dart';
 
 /// Accueil conducteur : publier un trajet A→B et gérer les demandes de covoiturage.
 class DriverHomeTab extends StatefulWidget {
@@ -20,8 +24,33 @@ class _DriverHomeTabState extends State<DriverHomeTab> {
   int _seats = 3;
   bool _showPublishForm = false;
 
+  int _carouselIndex = 0;
+  final PageController _carouselController = PageController(viewportFraction: 0.86);
+
+  final List<Map<String, String>> _carouselItems = [
+    {
+      'image': 'assets/images/Pont-bouygues.jpg',
+      'title': 'Axes à forte demande',
+      'subtitle': 'Zone 4 — Plateau, Cocody — Riviera.',
+      'tag': 'ABIDJAN',
+    },
+    {
+      'image': 'assets/images/gettyimages-1321204684-2048x2048.jpg',
+      'title': 'Remplissez votre véhicule',
+      'subtitle': 'Publiez A→B et recevez des demandes en temps réel.',
+      'tag': 'COVOITURAGE',
+    },
+    {
+      'image': 'assets/images/0_250303064111.jpg',
+      'title': 'Gagnez en visibilité',
+      'subtitle': 'Les passagers voient votre trajet sur leur itinéraire.',
+      'tag': 'PRO',
+    },
+  ];
+
   @override
   void dispose() {
+    _carouselController.dispose();
     _fromController.dispose();
     _toController.dispose();
     super.dispose();
@@ -60,115 +89,253 @@ class _DriverHomeTabState extends State<DriverHomeTab> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: RefreshIndicator(
-        onRefresh: () async {
-          _refresh();
-        },
-        child: CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(child: _buildHeader(pending)),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-              sliver: SliverList(
-                delegate: SliverChildListDelegate([
-                  if (active != null) ...[
-                    _activeRouteCard(active),
-                    const SizedBox(height: 20),
-                  ] else if (_showPublishForm) ...[
-                    _publishFormCard(),
-                    const SizedBox(height: 20),
-                  ] else ...[
-                    _publishCtaCard(),
-                    const SizedBox(height: 20),
-                  ],
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Demandes de trajet',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Constants.primaryColor,
+      drawer: const AppDrawer(),
+      body: Builder(
+        builder: (scaffoldContext) {
+          return RefreshIndicator(
+            onRefresh: () async {
+              _refresh();
+            },
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildHeroWithCarousel(scaffoldContext, pending),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (active != null) ...[
+                          _activeRouteCard(active),
+                          const SizedBox(height: 20),
+                        ] else if (_showPublishForm) ...[
+                          _publishFormCard(),
+                          const SizedBox(height: 20),
+                        ] else ...[
+                          _publishCtaCard(),
+                          const SizedBox(height: 20),
+                        ],
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Demandes de trajet',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Constants.primaryColor,
+                              ),
+                            ),
+                            if (pending > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Constants.accentOrange,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '$pending nouvelle${pending > 1 ? 's' : ''}',
+                                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                          ],
                         ),
-                      ),
-                      if (pending > 0)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: Constants.accentOrange,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '$pending nouvelle${pending > 1 ? 's' : ''}',
-                            style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                          ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Passagers de l’app souhaitant rejoindre votre axe',
+                          style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                         ),
-                    ],
+                        const SizedBox(height: 14),
+                        if (requests.isEmpty)
+                          _emptyRequests()
+                        else
+                          ...requests.map(_requestCard),
+                        const SizedBox(height: 80),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Passagers de l’app souhaitant rejoindre votre axe',
-                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                  ),
-                  const SizedBox(height: 14),
-                  if (requests.isEmpty)
-                    _emptyRequests()
-                  else
-                    ...requests.map(_requestCard),
-                  const SizedBox(height: 80),
-                ]),
+                ],
               ),
             ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildHeroWithCarousel(BuildContext scaffoldContext, int pending) {
+    final top = MediaQuery.paddingOf(context).top;
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [_headerDark, Constants.primaryColor],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
+        ),
+      ),
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(24, top + 16, 24, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.menu, color: Colors.white),
+                  onPressed: () => Scaffold.of(scaffoldContext).openDrawer(),
+                ),
+                Icon(Icons.location_on, color: Constants.accentGreen),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Abidjan, Côte d’Ivoire',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                Badge(
+                  isLabelVisible: pending > 0,
+                  label: Text('$pending'),
+                  backgroundColor: Constants.accentOrange,
+                  child: const Icon(Icons.notifications_none, color: Colors.white),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Constants.accentOrange.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(Icons.local_taxi, color: Constants.accentOrange, size: 26),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Espace conducteur',
+                        style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold, height: 1.1),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        AppSession.displayName,
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.88), fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Publiez votre trajet (A → B) et acceptez les demandes de covoiturage.',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.86), fontSize: 14, height: 1.45),
+            ),
+            const SizedBox(height: 22),
+            GestureDetector(
+              onTap: () => setState(() => _showPublishForm = true),
+              child: AbsorbPointer(
+                child: InputWidget(
+                  hintText: 'Publier ou modifier un trajet…',
+                  suffixIcon: Icons.edit_road,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              height: 250,
+              child: PageView.builder(
+                controller: _carouselController,
+                itemCount: _carouselItems.length,
+                onPageChanged: (i) => setState(() => _carouselIndex = i),
+                itemBuilder: (context, index) {
+                  final item = _carouselItems[index];
+                  return _carouselCard(item, index == _carouselIndex);
+                },
+              ),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(
+                _carouselItems.length,
+                (index) => Container(
+                  width: index == _carouselIndex ? 20 : 8,
+                  height: 8,
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  decoration: BoxDecoration(
+                    color: index == _carouselIndex ? Constants.accentOrange : Colors.white30,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader(int pending) {
-    final top = MediaQuery.paddingOf(context).top;
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(20, top + 16, 20, 28),
-      color: _headerDark,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Constants.accentOrange.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(Icons.local_taxi, color: Constants.accentOrange, size: 26),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Espace conducteur',
-                      style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      AppSession.displayName,
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14),
-                    ),
-                  ],
+  Widget _carouselCard(Map<String, String> item, bool isActive) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      margin: EdgeInsets.only(right: 16, top: isActive ? 0 : 12, bottom: isActive ? 0 : 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 16, offset: const Offset(0, 8))],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(item['image']!, fit: BoxFit.cover),
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.black.withValues(alpha: 0.42), Colors.black.withValues(alpha: 0.12)],
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Indiquez votre trajet (point A → point B) pour proposer des places en covoiturage.',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 14, height: 1.4),
-          ),
-        ],
+            ),
+            Positioned(
+              left: 20,
+              bottom: 20,
+              right: 20,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: Constants.accentOrange.withValues(alpha: 0.95),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(item['tag']!, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(item['title']!, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 6),
+                  Text(item['subtitle']!, style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -458,10 +625,11 @@ class _DriverHomeTabState extends State<DriverHomeTab> {
                     onPressed: () {
                       CarpoolService.acceptRequest(req.id);
                       _refresh();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('${req.passengerName} accepté(e)'),
-                          backgroundColor: Constants.accentGreen,
+                      final route = CarpoolService.myActiveRoute;
+                      MainShell.of(context)?.pushOverlay(
+                        DriverActiveCoursePage(
+                          request: req,
+                          routeLabel: route?.departureLabel,
                         ),
                       );
                     },
