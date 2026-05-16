@@ -3,6 +3,7 @@ import 'package:repair_service_ui/pages/main_shell.dart';
 import 'package:repair_service_ui/pages/order_vtc.dart';
 import 'package:repair_service_ui/pages/plan_trip.dart';
 import 'package:repair_service_ui/pages/request_service_flow.dart';
+import 'package:repair_service_ui/pages/carpool_request_page.dart';
 import 'package:repair_service_ui/utils/constants.dart';
 import 'package:repair_service_ui/widgets/app_drawer.dart';
 import 'package:repair_service_ui/widgets/input_widget.dart';
@@ -228,6 +229,7 @@ class _HomeTabState extends State<HomeTab> {
                           'Covoiturage',
                           Icons.people,
                           Constants.accentGreen,
+                          onTap: () => _openOverlay(const CarpoolRequestPage()),
                         ),
                       ),
                     ],

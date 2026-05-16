@@ -56,7 +56,12 @@ class _WatsonxRecommendationsPageState
     setState(() {
       _loading = false;
       _result = result;
-      _recommendations = result['recommendations'] ?? [];
+      final recs = result['recommendations'];
+      if (recs is List) {
+        _recommendations = recs.whereType<Map<String, dynamic>>().toList();
+      } else {
+        _recommendations = [];
+      }
       if (_assistantText.isEmpty && result['body'] != null) {
         _assistantText = result['body'].toString();
       }

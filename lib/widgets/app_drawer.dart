@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:repair_service_ui/pages/register_page.dart';
 import 'package:repair_service_ui/pages/main_shell.dart';
 import 'package:repair_service_ui/pages/plan_trip.dart';
+import 'package:repair_service_ui/pages/plan_trip_list.dart';
+import 'package:repair_service_ui/pages/carpool_request_page.dart';
 import 'package:repair_service_ui/pages/order_vtc.dart';
 import 'package:repair_service_ui/pages/request_service_flow.dart';
 import 'package:repair_service_ui/pages/watsonx_recommendations_page.dart';
@@ -10,6 +12,26 @@ import 'package:repair_service_ui/utils/constants.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
+
+  void _navigateToTab(BuildContext context, int index) {
+    final shell = MainShell.of(context);
+    Navigator.pop(context);
+    if (shell != null) {
+      shell.switchTab(index);
+    } else {
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    }
+  }
+
+  void _openOverlay(BuildContext context, Widget page) {
+    final shell = MainShell.of(context);
+    Navigator.pop(context);
+    if (shell != null) {
+      shell.pushOverlay(page);
+    } else {
+      Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -42,22 +64,29 @@ class AppDrawer extends StatelessWidget {
                 ],
               ),
             ),
-            _drawerItem(context, Icons.home_outlined, 'Accueil', () {
+            _drawerItem(context, Icons.home_outlined, 'Accueil', () => _navigateToTab(context, 0)),
+            _drawerItem(context, Icons.map, 'Planifier', () => _openOverlay(context, PlanTripPage())),
+            _drawerItem(context, Icons.schedule, 'Mes voyages planifiés', () {
               Navigator.pop(context);
-              MainShell.of(context)?.switchTab(0);
+              final shell = MainShell.of(context);
+              if (shell != null) {
+                shell.pushOverlay(const PlanTripListPage());
+              } else {
+                Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PlanTripListPage()));
+              }
             }),
-            _drawerItem(context, Icons.map, 'Planifier', () {
+            _drawerItem(context, Icons.group, 'Covoiturage', () {
               Navigator.pop(context);
-              MainShell.of(context)?.pushOverlay(PlanTripPage());
+              final shell = MainShell.of(context);
+              if (shell != null) {
+                shell.pushOverlay(const CarpoolRequestPage());
+              } else {
+                Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CarpoolRequestPage()));
+              }
             }),
-            _drawerItem(context, Icons.insights, 'Historique & stats', () {
-              Navigator.pop(context);
-              MainShell.of(context)?.switchTab(1);
-            }),
-            _drawerItem(context, Icons.local_taxi, 'Commander', () {
-              Navigator.pop(context);
-              MainShell.of(context)?.pushOverlay(OrderVtcPage());
-            }),
+            _drawerItem(context, Icons.person_outline, 'Profil', () => _navigateToTab(context, 3)),
+            _drawerItem(context, Icons.insights, 'Historique & stats', () => _navigateToTab(context, 1)),
+            _drawerItem(context, Icons.local_taxi, 'Commander', () => _openOverlay(context, OrderVtcPage())),
             _drawerItem(context, Icons.pages, 'Introduction', () {
               Navigator.pop(context);
               Navigator.of(context).push(MaterialPageRoute(builder: (_) => RequestServiceFlow(initialPage: 1)));

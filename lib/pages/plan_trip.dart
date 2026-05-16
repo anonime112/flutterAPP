@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:repair_service_ui/models/plan_models.dart';
 import 'package:repair_service_ui/pages/plan_result.dart';
+import 'package:repair_service_ui/pages/plan_trip_list.dart';
+import 'package:repair_service_ui/services/plan_service.dart';
 import 'package:repair_service_ui/utils/constants.dart';
 import 'package:repair_service_ui/utils/nav_helper.dart';
 import 'package:repair_service_ui/widgets/app_drawer.dart';
@@ -17,7 +20,9 @@ class _PlanTripPageState extends State<PlanTripPage> {
   DateTime selectedDate = DateTime.now().add(const Duration(days: 1));
   String selectedCity = 'Abidjan, Cocody';
   int selectedCategory = 0;
+  final TextEditingController _originController = TextEditingController(text: 'Zone 4, Abidjan');
   final TextEditingController _searchController = TextEditingController();
+  TimeOfDay selectedTime = const TimeOfDay(hour: 8, minute: 30);
 
   final List<String> _categories = ['Tous', 'VTC', 'Bus', 'Collectif'];
 
@@ -50,6 +55,7 @@ class _PlanTripPageState extends State<PlanTripPage> {
 
   @override
   void dispose() {
+    _originController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -70,6 +76,8 @@ class _PlanTripPageState extends State<PlanTripPage> {
                   padding: const EdgeInsets.fromLTRB(20, 88, 20, 24),
                   children: [
                     const SizedBox(height: 8),
+                    _buildPlanningForm(),
+                    const SizedBox(height: 18),
                     _buildCategoryChips(),
                     const SizedBox(height: 22),
                     Text(
@@ -484,6 +492,192 @@ class _PlanTripPageState extends State<PlanTripPage> {
         ],
       ),
     );
+  }
+
+  Widget _buildPlanningForm() {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Planifiez votre voyage',
+            style: TextStyle(
+              color: Constants.primaryColor,
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
+          ),
+          const SizedBox(height: 14),
+          _buildTextField(_originController, 'Point de départ', Icons.trip_origin),
+          const SizedBox(height: 12),
+          _buildTextField(_searchController, 'Destination', Icons.location_on),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _buildDatePickerField()),
+              const SizedBox(width: 12),
+              Expanded(child: _buildTimePickerField()),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _savePlannedTrip,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Constants.accentOrange,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: const Text('Enregistrer', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: _viewPlannedTrips,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Constants.primaryColor,
+                    side: BorderSide(color: Constants.primaryColor),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: const Text('Mes voyages'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextField(TextEditingController controller, String label, IconData icon) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: Constants.primaryColor),
+        filled: true,
+        fillColor: Constants.greyColor,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+      ),
+    );
+  }
+
+  Widget _buildDatePickerField() {
+    return GestureDetector(
+      onTap: () => _selectDate(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+        decoration: BoxDecoration(
+          color: Constants.greyColor,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.calendar_today_outlined, color: Colors.grey),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                '${selectedDate.day}/${selectedDate.month}/${selectedDate.year}',
+                style: TextStyle(color: Constants.primaryColor, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTimePickerField() {
+    return GestureDetector(
+      onTap: () => _selectTime(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+        decoration: BoxDecoration(
+          color: Constants.greyColor,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.access_time, color: Colors.grey),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                selectedTime.format(context),
+                style: TextStyle(color: Constants.primaryColor, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _savePlannedTrip() {
+    final from = _originController.text.trim();
+    final to = _searchController.text.trim();
+    if (from.isEmpty || to.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Veuillez renseigner le départ et la destination.')),
+      );
+      return;
+    }
+
+    final dateTime = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+      selectedTime.hour,
+      selectedTime.minute,
+    );
+
+    PlanService.addTrip(PlannedTrip(
+      id: 'trip_${DateTime.now().millisecondsSinceEpoch}',
+      from: from,
+      to: to,
+      dateTime: dateTime,
+    ));
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Voyage planifié enregistré.')), 
+    );
+  }
+
+  void _viewPlannedTrips() {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PlanTripListPage()));
+  }
+
+  Future<void> _selectTime(BuildContext context) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: selectedTime,
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.light().copyWith(
+            colorScheme: ColorScheme.light(primary: Constants.accentOrange),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() => selectedTime = picked);
+    }
   }
 
   Widget _buildAnalyzeButton() {

@@ -4,6 +4,39 @@ import 'package:repair_service_ui/config/maps_config.dart';
 
 /// Watsonx (IBM Watson Orchestrate) client for route recommendations.
 class WatsonxService {
+ /// Récupère le token IAM IBM
+  static Future<String?> getJwtToken() async {
+  try {
+    final response = await http.post(
+      Uri.parse(
+        'https://iam.platform.saas.ibm.com/siusermgr/api/1.0/apikeys/token',
+      ),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: jsonEncode({
+        'apikey': kWatsonxApiKey,
+      }),
+    );
+
+    print("JWT STATUS: ${response.statusCode}");
+    print("JWT BODY: ${response.body}");
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+
+      /// généralement le token est ici
+      return data['jwt'];
+    }
+
+    return null;
+  } catch (e) {
+    print("JWT ERROR: $e");
+    return null;
+  }
+}
+
   /// Fetch route recommendations from Watsonx based on a travel query.
   static Future<Map<String, dynamic>> fetchRecommendations(
     String message, {
@@ -15,12 +48,30 @@ class WatsonxService {
 
     final client = http.Client();
     try {
-      final uri = Uri.parse('${kWatsonxEndpoint}/api/v1/orchestrate/runs/stream');
+
+      /// 👇 récupérer le token IAM
+      final token = await getJwtToken();
+      if (token == null) {
+        return {
+          'error': 'Impossible de récupérer le token IAM',
+          'recommendations': [],
+        };
+      }
+
+      final endpoint = kWatsonxEndpoint.trim().replaceAll(RegExp(r'/+$'), '');
+      final uri = Uri.tryParse('$endpoint/api/v1/orchestrate/runs/stream');
+      if (uri == null || uri.host.isEmpty || uri.scheme.isEmpty) {
+        return {
+          'error': 'Invalid Watsonx endpoint: $endpoint',
+          'recommendations': [],
+        };
+      }
+
       final request = http.Request('POST', uri);
       request.headers.addAll({
         'Content-Type': 'application/json',
         'Accept': 'application/json, text/event-stream',
-        'Authorization': 'Bearer ${kWatsonxApiKey}',
+        'Authorization': 'Bearer $token',
       });
       request.body = jsonEncode({
         'message': {
@@ -54,25 +105,40 @@ class WatsonxService {
 
       final body = buffer.toString();
       if (streamedResp.statusCode == 200 || streamedResp.statusCode == 201) {
+        dynamic parsed;
         Map<String, dynamic>? data;
+
         try {
-          data = jsonDecode(body) as Map<String, dynamic>;
+          parsed = jsonDecode(body);
         } catch (_) {
-          final matches = RegExp(r'data:\s*(\{.*\})', dotAll: true).allMatches(body);
+          final matches = RegExp(r'data:\s*(\{.*?\})(?:\s|$)', dotAll: true).allMatches(body);
           if (matches.isNotEmpty) {
             try {
-              data = jsonDecode(matches.last.group(1)!) as Map<String, dynamic>;
+              parsed = jsonDecode(matches.last.group(1)!);
             } catch (_) {
-              data = null;
+              parsed = null;
             }
           }
         }
 
+        if (parsed is Map<String, dynamic>) {
+          data = parsed;
+        } else if (parsed is List<dynamic>) {
+          data = {
+            'output': {
+              'message': {
+                'content': parsed,
+              }
+            }
+          };
+        }
+
         if (data != null) {
+          final recommendations = _parseRecommendations(data);
           return {
             'success': true,
             'data': data,
-            'recommendations': _parseRecommendations(data),
+            'recommendations': recommendations,
             'body': body,
           };
         }
@@ -104,7 +170,7 @@ class WatsonxService {
   static List<Map<String, dynamic>> _parseRecommendations(
       Map<String, dynamic> data) {
     final recommendations = <Map<String, dynamic>>[];
-    
+
     // Try to extract recommendations from various possible response formats
     if (data['output'] != null) {
       final output = data['output'];
@@ -119,13 +185,38 @@ class WatsonxService {
                   'type': item['type'] ?? 'text',
                   'text': item['text'] ?? item['content'] ?? '',
                 });
+              } else if (item is String) {
+                recommendations.add({
+                  'type': 'text',
+                  'text': item,
+                });
               }
             }
+          } else if (content is String) {
+            recommendations.add({
+              'type': 'text',
+              'text': content,
+            });
+          }
+        }
+      } else if (output is List) {
+        for (var item in output) {
+          if (item is Map) {
+            final text = item['text'] ?? item['content'] ?? item['message']?.toString() ?? item.toString();
+            recommendations.add({
+              'type': item['type'] ?? 'text',
+              'text': text,
+            });
+          } else if (item is String) {
+            recommendations.add({
+              'type': 'text',
+              'text': item,
+            });
           }
         }
       }
     }
-    
+
     // If no content found, try to create a summary from the full response
     if (recommendations.isEmpty && data['output'] != null) {
       recommendations.add({

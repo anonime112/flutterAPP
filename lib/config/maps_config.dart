@@ -6,4 +6,4 @@ const bool kMapsPreferOpenStreetMap = bool.fromEnvironment('MAP_OSM', defaultVal
 
 // Watsonx configuration (IBM Watson Orchestrate API)
 const String kWatsonxEndpoint = 'https://api.ap-southeast-1.dl.watson-orchestrate.ibm.com/instances/20260506-1632-0412-70cb-0eda0fe2b13b';
-const String kWatsonxApiKey = 'azE6dXNlcl9iNDkwODA2My03ZGIwLTM0MzYtYmIyZC0yOGM2OGMyZGY4MTA6NzVzNzF6N0RxR1BYK2p6R2swawBmaUpacTB1ZlBJSDlTUGIrdFRyc1c2dz06TTJ5Ug';
+const String kWatsonxApiKey = 'azE6dXNyX2I0OTA4MDYzLTdkMjAtMzQzNi1iYjJkLTI4YzY4YzJkZjgxMDpEYXFSU0pNTkpZOEVZbnZhdGpxUmlJdDBlKzVDbUhGbUVwaUVWeVUrbEpJPTpWSllZ';
