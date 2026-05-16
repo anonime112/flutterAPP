@@ -6,8 +6,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:repair_service_ui/config/maps_config.dart';
 import 'package:repair_service_ui/utils/constants.dart';
 
-/// Carte Abidjan : **Google Maps** par défaut (tuiles et style Google).
-/// Sans clé API valide, l’écran peut rester gris : utilisez alors `--dart-define=MAP_OSM=true` pour OpenStreetMap.
+/// Carte Abidjan : **OpenStreetMap** par défaut (gratuit). Google Maps si `MAP_GOOGLE=true` + clé valide.
 class AbidjanMapView extends StatefulWidget {
   const AbidjanMapView({
     super.key,
